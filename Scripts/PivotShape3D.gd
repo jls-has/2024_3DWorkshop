@@ -1,5 +1,7 @@
 @tool
 extends Marker3D
+class_name PivotShape3D
+
 @export_category("Appearance")
 @export_enum("Box", "Capsule", "Cylinder", "Prism", "Sphere", "Empty") var shape : int :
 	set(value):
