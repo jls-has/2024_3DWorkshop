@@ -1,0 +1,2200 @@
+[gd_scene load_steps=32 format=3 uid="uid://gmpuu3221vah"]
+
+[ext_resource type="Script" path="res://Scripts/PivotShape2D.gd" id="1_1drae"]
+
+[sub_resource type="Shader" id="Shader_gx7ix"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4ag7n"]
+shader = SubResource("Shader_gx7ix")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(0, 0, 0, 0)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_wxsj6"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mdsx7"]
+shader = SubResource("Shader_wxsj6")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_h4fsd"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2ec8t"]
+shader = SubResource("Shader_h4fsd")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_osktb"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mxgv7"]
+shader = SubResource("Shader_osktb")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_3plni"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_b1lrt"]
+shader = SubResource("Shader_3plni")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_o5vcr"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dxejq"]
+shader = SubResource("Shader_o5vcr")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_t5i02"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_x6nef"]
+shader = SubResource("Shader_t5i02")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_24y78"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_6q72t"]
+shader = SubResource("Shader_24y78")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_ghv5t"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ekjk7"]
+shader = SubResource("Shader_ghv5t")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_pbewb"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5mi1g"]
+shader = SubResource("Shader_pbewb")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_6nv4m"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lg5uw"]
+shader = SubResource("Shader_6nv4m")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_u8mg6"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4giye"]
+shader = SubResource("Shader_u8mg6")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_qsd77"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ms5es"]
+shader = SubResource("Shader_qsd77")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_sa4ys"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2kre0"]
+shader = SubResource("Shader_sa4ys")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[sub_resource type="Shader" id="Shader_dfopu"]
+code = "shader_type canvas_item;
+
+uniform int shape = 0;
+uniform float poly_count = 3.0;
+uniform float radius_scalor : hint_range(0.0, 1.0, 0.01) = 1.0;
+uniform bool stroke_only  = false;
+
+uniform vec4 my_color : source_color = vec4(1.0,1.0,1.0,1.0);
+
+uniform int blending_mode :hint_range(-1, 10, 1) = -1;
+
+//uniform float masking_range = 0.1;
+uniform sampler2D SCREEN_TEXTURE: hint_screen_texture, filter_linear_mipmap;
+
+vec4 multiply(vec4 base, vec4 blend){return base * blend;}
+vec4 screen(vec4 base, vec4 blend){return 1.0 - (1.0 - base) * (1.0 - blend);}
+vec4 darken(vec4 base, vec4 blend){return min(base, blend);}
+vec4 lighten(vec4 base, vec4 blend){return max(base, blend);}
+vec4 difference(vec4 base, vec4 blend){return abs(base - blend);}
+vec4 overlay(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, base);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 exclusion(vec4 base, vec4 blend){return base + blend - 2.0 * base * blend;}
+vec4 hard_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), limit);}
+vec4 soft_light(vec4 base, vec4 blend){
+	vec4 limit = step(0.5, blend);
+	return mix(2.0 * base * blend + base * base * (1.0 - 2.0 * blend), sqrt(base) * (2.0 * blend - 1.0) + (2.0 * base) * (1.0 - blend), limit);}
+vec4 color_burn(vec4 base, vec4 blend){return 1.0 - (1.0 - base) / blend;}
+vec4 linear_burn (vec4 base, vec4 blend){return base + blend - 1.0;}
+vec4 color_dodge(vec4 base, vec4 blend){return base / (1.0 - blend);}
+vec4 linear_dodge(vec4 base, vec4 blend){return base+blend;}
+
+
+float Circle(vec2 st)
+{
+	vec2 center = vec2(0.5) - st;
+	if(stroke_only){
+		float draw = step(length(center), 0.5);
+		float draw1 = step(length(center)/radius_scalor, 0.5);
+		return draw-draw1;}
+	else{
+		float draw = step(length(center)/radius_scalor, 0.5);
+		return draw;}
+}
+
+float Square(vec2 st)
+{
+	st = st*2.0 - 1.0;
+	vec2 abs_uv = abs(st.xy);
+
+	//if (stroke_only){width =1.0*radius_scalor;}
+	//else {width = (1.0-radius_scalor);}
+	float draw = step(1.0*radius_scalor, max(abs_uv.x, abs_uv.y));
+	if(stroke_only){return draw;}
+	else{ return 1.0-draw;}
+}
+
+float Triangle(vec2 st, float width)
+{
+	st = st * 2.0 - 1.0;
+
+	if (poly_count > 2.0)
+	{
+		if (poly_count < 4.0)
+		{
+			st.y += 0.25;
+		}
+	}
+
+	float angle = atan(st.x, st.y) + radians(180.0);
+	float radius = TAU / float(poly_count);
+
+	float dist = cos(floor(0.5 + angle / radius) * radius - angle) * length(st);
+	float poly = step(width, dist);
+	dist /= radius_scalor;
+	float poly1 = step(width, dist);
+
+	if(stroke_only){return (1.0-poly)-(1.0-poly1);}
+	else{ return 1.0-poly1;}
+}
+
+void fragment()
+{
+	vec4 world_pixel = texture(SCREEN_TEXTURE, SCREEN_UV);
+
+	vec2 st = UV;
+	st.y = 1.0 - st.y;
+
+	float sh;
+
+	if (shape == 1){sh = Circle(st);}
+	else if (shape == 0){sh = Square(st);}
+	else if (shape == 2){sh = Triangle(st, 0.5);}
+
+	vec4 color = vec4(sh/radius_scalor);
+	color = 1.0 - color;
+	float alpha = 1.0 - color.r;
+	color = 1.0 - color;
+	color.a = alpha;
+
+	color *= my_color;
+
+
+	if (blending_mode == 0) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 1) {color = multiply(color, world_pixel);}
+	else if (blending_mode == 2) {color = screen(color, world_pixel);}
+	else if (blending_mode == 3) {color = darken(color, world_pixel);}
+	else if (blending_mode == 4) {color = lighten(color, world_pixel);}
+	else if (blending_mode == 5) {color = difference(color, world_pixel);}
+	else if (blending_mode == 6) {color = exclusion(color, world_pixel);}
+	else if (blending_mode == 7) {color = overlay(color, world_pixel);}
+	else if (blending_mode == 8) {color = hard_light(color, world_pixel);}
+	else if (blending_mode == 9) {color = soft_light(color, world_pixel);}
+	else if (blending_mode == 10) {color = color_dodge(color, world_pixel);}
+	else if (blending_mode == 11) {color = linear_dodge(color, world_pixel);}
+	else if (blending_mode == 12) {color = color_burn(color, world_pixel);}
+	else if (blending_mode == 13) {color = linear_burn(color, world_pixel);}
+
+
+
+
+	COLOR = color;
+
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0elyf"]
+shader = SubResource("Shader_dfopu")
+shader_parameter/shape = 0
+shader_parameter/poly_count = 3.0
+shader_parameter/radius_scalor = 1.0
+shader_parameter/stroke_only = false
+shader_parameter/my_color = Color(1, 1, 1, 1)
+shader_parameter/blending_mode = -1
+
+[node name="PivotShape2D" type="ColorRect"]
+material = SubResource("ShaderMaterial_4ag7n")
+clip_contents = true
+offset_left = 274.0
+offset_top = 171.0
+offset_right = 471.0
+offset_bottom = 529.0
+pivot_offset = Vector2(98.5, 179)
+color = Color(0, 0, 0, 0)
+script = ExtResource("1_1drae")
+_color = Color(0, 0, 0, 0)
+pivot = Vector2(0.5, 0.5)
+mask_children = true
+
+[node name="LineSquare" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_mdsx7")
+offset_top = -5.0
+offset_right = 416.0
+offset_bottom = 12.0
+pivot_offset = Vector2(208, 197.37)
+script = ExtResource("1_1drae")
+pivot = Vector2(0.5, 11.61)
+metadata/_edit_group_ = true
+
+[node name="Fan2" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_2ec8t")
+layout_mode = 0
+offset_top = 30.0
+offset_right = 416.0
+offset_bottom = 47.0
+script = ExtResource("1_1drae")
+
+[node name="Fan3" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_mxgv7")
+layout_mode = 0
+offset_top = 96.0
+offset_right = 416.0
+offset_bottom = 113.0
+script = ExtResource("1_1drae")
+
+[node name="Fan4" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_b1lrt")
+layout_mode = 0
+offset_top = 128.0
+offset_right = 416.0
+offset_bottom = 145.0
+script = ExtResource("1_1drae")
+
+[node name="Fan5" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_dxejq")
+layout_mode = 0
+offset_top = 157.0
+offset_right = 416.0
+offset_bottom = 174.0
+script = ExtResource("1_1drae")
+
+[node name="Fan6" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_x6nef")
+layout_mode = 0
+offset_top = 62.0
+offset_right = 416.0
+offset_bottom = 79.0
+script = ExtResource("1_1drae")
+
+[node name="Fan7" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_6q72t")
+layout_mode = 0
+offset_left = 1.0
+offset_top = 189.0
+offset_right = 417.0
+offset_bottom = 206.0
+script = ExtResource("1_1drae")
+
+[node name="Fan8" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_ekjk7")
+layout_mode = 0
+offset_left = 1.0
+offset_top = 219.0
+offset_right = 417.0
+offset_bottom = 236.0
+script = ExtResource("1_1drae")
+
+[node name="Fan9" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_5mi1g")
+layout_mode = 0
+offset_left = 1.0
+offset_top = 285.0
+offset_right = 417.0
+offset_bottom = 302.0
+script = ExtResource("1_1drae")
+
+[node name="Fan10" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_lg5uw")
+layout_mode = 0
+offset_left = 1.0
+offset_top = 317.0
+offset_right = 417.0
+offset_bottom = 334.0
+script = ExtResource("1_1drae")
+
+[node name="Fan11" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_4giye")
+layout_mode = 0
+offset_left = 1.0
+offset_top = 346.0
+offset_right = 417.0
+offset_bottom = 363.0
+script = ExtResource("1_1drae")
+
+[node name="Fan12" type="ColorRect" parent="LineSquare"]
+material = SubResource("ShaderMaterial_ms5es")
+layout_mode = 0
+offset_left = 1.0
+offset_top = 251.0
+offset_right = 417.0
+offset_bottom = 268.0
+script = ExtResource("1_1drae")
+
+[node name="Fan2" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_2kre0")
+offset_left = -17.0
+offset_top = 144.0
+offset_right = 399.0
+offset_bottom = 161.0
+rotation = 0.685
+scale = Vector2(1.15644, 0.776381)
+pivot_offset = Vector2(208, 8.5)
+script = ExtResource("1_1drae")
+pivot = Vector2(0.5, 0.5)
+
+[node name="Fan3" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_0elyf")
+offset_left = -33.0001
+offset_top = 175.0
+offset_right = 383.0
+offset_bottom = 192.0
+rotation = -0.785397
+scale = Vector2(1.15644, 0.776381)
+pivot_offset = Vector2(208, 8.5)
+script = ExtResource("1_1drae")
+pivot = Vector2(0.5, 0.5)

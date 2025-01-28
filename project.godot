@@ -15,3 +15,7 @@ run/main_scene="res://Scenes/Main3D.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
 boot_splash/image="res://System/HAS_logo2.png"
 config/icon="res://System/icon.svg"
+
+[rendering]
+
+environment/defaults/default_clear_color=Color(0, 0, 0, 1)

@@ -1,223 +1,84 @@
-[gd_scene load_steps=7 format=3 uid="uid://chi0066u2vxkd"]
+[gd_scene load_steps=11 format=3 uid="uid://chi0066u2vxkd"]
 
-[ext_resource type="Script" path="res://Scripts/PivotShape2D.gd" id="1_3pmuq"]
+[ext_resource type="Script" path="res://Scenes/Spinner.gd" id="1_s2s6y"]
+[ext_resource type="PackedScene" uid="uid://dtvhocitgb3qv" path="res://fan_blade.tscn" id="2_5flcq"]
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_3h0o3"]
+[sub_resource type="Curve" id="Curve_uqjnp"]
+_data = [Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 1
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_6xjax"]
+[sub_resource type="CurveTexture" id="CurveTexture_qj1i7"]
+width = 32
+curve = SubResource("Curve_uqjnp")
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_uoqdj"]
+[sub_resource type="Curve" id="Curve_aslpe"]
+_data = [Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 1
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_xjnmg"]
+[sub_resource type="CurveTexture" id="CurveTexture_cbsab"]
+width = 32
+curve = SubResource("Curve_aslpe")
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_04qao"]
+[sub_resource type="Curve" id="Curve_3oddm"]
+_data = [Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 1
+
+[sub_resource type="CurveTexture" id="CurveTexture_jermq"]
+width = 32
+curve = SubResource("Curve_3oddm")
+
+[sub_resource type="Curve" id="Curve_gar47"]
+_data = [Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 1
+
+[sub_resource type="CurveTexture" id="CurveTexture_xc46c"]
+width = 32
+curve = SubResource("Curve_gar47")
 
 [node name="Main2D" type="Node2D"]
 
-[node name="fan" type="Marker2D" parent="."]
-material = SubResource("CanvasItemMaterial_3h0o3")
-position = Vector2(371, 87)
-script = ExtResource("1_3pmuq")
-pivot_offset = Vector2(-0.14, 0)
-shape = 3
-filled = false
-stroke_width = 1.0
+[node name="Fan" type="Node2D" parent="."]
+position = Vector2(468, 211)
+rotation = 150.809
+scale = Vector2(-1, 1)
+script = ExtResource("1_s2s6y")
+speed = 1.135
 
-[node name="X1" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(3, 35)
-rotation = -0.651969
-scale = Vector2(1.49, 1.49)
-script = ExtResource("1_3pmuq")
-shape = 3
-radius = 37.5
-filled = false
-stroke_width = 1.0
+[node name="Fan_Blade" parent="Fan" instance=ExtResource("2_5flcq")]
+offset_left = -201.005
+offset_top = 128.991
+offset_right = 169.995
+offset_bottom = 491.991
+pivot_offset = Vector2(185.5, -132.495)
+texture = SubResource("CurveTexture_qj1i7")
+pivot = Vector2(0.5, -0.365)
 
-[node name="X2" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(-3, 35)
-rotation = 0.652753
-scale = Vector2(1.49, 1.49)
-script = ExtResource("1_3pmuq")
-shape = 3
-radius = 32.5
-filled = false
-stroke_width = 1.0
+[node name="Fan_Blade2" parent="Fan" instance=ExtResource("2_5flcq")]
+offset_left = -201.005
+offset_top = 128.991
+offset_right = 169.995
+offset_bottom = 491.991
+rotation = 1.57079
+pivot_offset = Vector2(185.5, -132.495)
+texture = SubResource("CurveTexture_cbsab")
+pivot = Vector2(0.5, -0.365)
 
-[node name="PivotShape2D2" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 4)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
+[node name="Fan_Blade3" parent="Fan" instance=ExtResource("2_5flcq")]
+offset_left = -201.005
+offset_top = 128.991
+offset_right = 169.995
+offset_bottom = 491.991
+rotation = -3.14159
+pivot_offset = Vector2(185.5, -132.495)
+texture = SubResource("CurveTexture_jermq")
+pivot = Vector2(0.5, -0.365)
 
-[node name="PivotShape2D3" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 8)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D4" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 12)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D5" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 16)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D6" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_uoqdj")
-position = Vector2(0, 20)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D7" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 24)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D8" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 28)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D9" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 32)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D10" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 36)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D11" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_xjnmg")
-position = Vector2(0, 40)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D12" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 44)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D13" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 48)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D14" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 52)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D15" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 56)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D16" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_uoqdj")
-position = Vector2(0, 60)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D17" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 64)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D18" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 68)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D19" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 72)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D20" type="Marker2D" parent="fan"]
-material = SubResource("CanvasItemMaterial_6xjax")
-position = Vector2(0, 76)
-script = ExtResource("1_3pmuq")
-shape = 3
-filled = false
-stroke_width = 1.0
-metadata/_edit_lock_ = true
-
-[node name="PivotShape2D" type="Marker2D" parent="."]
-material = SubResource("CanvasItemMaterial_04qao")
-position = Vector2(318, 134)
-script = ExtResource("1_3pmuq")
-color = Color(0.298039, 0.298039, 0.298039, 1)
+[node name="Fan_Blade4" parent="Fan" instance=ExtResource("2_5flcq")]
+offset_left = -201.005
+offset_top = 128.991
+offset_right = 169.995
+offset_bottom = 491.991
+rotation = -1.57079
+pivot_offset = Vector2(185.5, -132.495)
+texture = SubResource("CurveTexture_xc46c")
+pivot = Vector2(0.5, -0.365)

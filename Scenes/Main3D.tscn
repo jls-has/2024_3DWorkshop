@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://cqh5ymai2351c"]
 
 [ext_resource type="Script" path="res://Scripts/Camera.gd" id="1_kl6vc"]
-[ext_resource type="Script" path="res://Scripts/main.gd" id="1_x3613"]
+[ext_resource type="Script" path="res://Scripts/main3D.gd" id="1_x3613"]
 [ext_resource type="PackedScene" uid="uid://cs2sw78qp5n8f" path="res://Scenes/PivotShape.tscn" id="3_4rf8n"]
 
 [sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_qq5mq"]

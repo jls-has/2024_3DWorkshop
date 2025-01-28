@@ -1,151 +1,128 @@
 @tool
-extends Marker2D
+extends ColorRect
 class_name PivotShape2D
 
+var shader_material: ShaderMaterial = preload("res://Materials/PivotShape2D.material").duplicate(true)
 @export_category("Appearance")
-
-@export var pivot_offset : Vector2 = Vector2.ZERO :
-	set(value):
-		pivot_offset = value
-		queue_redraw()
+@export var _color := Color(1,1,1,1) :
+	set(value): 
+		_color = value
+		color = _color
+		material.set_shader_parameter("my_color", value)
 		
-@export_enum("Box", "Circle", "Triangle", "Line") var shape : int :
-	set(value):
-		shape = value
-		queue_redraw()
 
-@export_range(0, 5000, .5) var radius : float = 50.0 :
-	set(value):
-		radius = value
-		queue_redraw()
-
-##@export var scale_x : float  = 1.0 :
-	##set(value):
-		##scale_x = value
-		##if scale_link_xy:
-			##scale_y = value
-		##scale = Vector2(scale_x, scale_y)
-#
-#@export var scale_y : float  = 1.0 :
-	#set(value):
-		#scale_y = value
-		#if scale_link_xy:
-			#scale_x = value
-		#scale = Vector2(scale_x, scale_y)
-#
-#@export var scale_link_xy : bool = true:
-	#set(value):
-		#scale_link_xy = value
-		#
-@export var invisible : bool = false :
-	set(value):
-		invisible = value
-		queue_redraw()
-		
-@export var color : Color :
-	set(value):
-		color = value
-		queue_redraw()
-
-@export var filled : bool = true :
-	set(value):
-		filled = value
-		if not filled and stroke_width <1:
-			stroke_width = 1.0
-		queue_redraw()
-
-@export_range (0,1000, 1.0) var stroke_width : float = 0.0 :
-	set(value):
-		stroke_width = value
-		queue_redraw()
-		
-@export var anti_aliased : bool = true : #https://docs.godotengine.org/en/stable/tutorials/2d/custom_drawing_in_2d.html#antialiased-drawing
-	set(value):
-		anti_aliased = value
-		queue_redraw()
-
-@export_enum("Mix", "Add", "Subtract", "Mask") var blend_mode : int :
+@export_enum("Normal", "Multiply", "Screen", "Darken", "Lighten", "Difference", "Exclusion", "Overlay", "Hard_Light", "Soft_Light", "Color Dodge", "Linear Dodge", "Color Burn", "Linear Burn") var blend_mode : int :
 	set(value):
 		blend_mode = value
 		if material == null:
-			material = CanvasItemMaterial.new()
-		set_clip_children_mode(CanvasItem.CLIP_CHILDREN_DISABLED)
+			return
+			
 		match blend_mode:
 			0:
-				(material as CanvasItemMaterial).blend_mode = CanvasItemMaterial.BLEND_MODE_MIX
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
 			1:
-				(material as CanvasItemMaterial).blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
 			2:
-				(material as CanvasItemMaterial).blend_mode = CanvasItemMaterial.BLEND_MODE_SUB
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
 			3:
-				(material as CanvasItemMaterial).blend_mode = CanvasItemMaterial.BLEND_MODE_MIX
-				queue_redraw()
-				print("masking")
-				set_clip_children_mode(CanvasItem.CLIP_CHILDREN_MAX)
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			4:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			5:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			6:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			7:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			8:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			9:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			10:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			11:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			12:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			13:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
+			14:
+				(material as ShaderMaterial).set_shader_parameter("blending_mode", value-1)
 			
-		
-
-@export_category("Movement")
-@export var enable_animation := false :
+@export_enum("Rectangle", "Ellipsoid", "Polygon") var shape : int :
 	set(value):
-		enable_animation = value
-		time = 0.0
-@export var offset := Vector3.ZERO :
-	set(value):
-		offset = value
-		if init:
-			$Mesh.position = offset
+		shape = value
+		if material == null:
+			return
 			
-@export var r_speed := 1.0
-@export var osc_rotation :float = 0.0
-@export var p_speed := 1.0
-@export var osc_position := Vector2.ZERO
-
-var init := false
-var time := 0.0
-
-func _ready() -> void:
-	init = true
-	
-	
-func _process(delta: float) -> void: 
-	if enable_animation:
-		time += delta
-		rotation = sin(time*r_speed)*osc_rotation
-		
-		position.x = sin(time*p_speed)*osc_position.x
-		position.y = sin(time*p_speed)*osc_position.y
-
-func _draw()->void:
-	if invisible:
-		return
-	var _stroke_width = stroke_width
-	var _color = color
-	
-	if filled:
-		_stroke_width = -1.0
-	
-
-		
-	match shape:
-		0: #Box
-			draw_rect(Rect2(-radius + pivot_offset.x,-radius+ pivot_offset.y, radius*2,radius*2), _color, filled, _stroke_width, anti_aliased )
-		1: #Circle
-			draw_circle(Vector2.ZERO + pivot_offset, radius, _color, filled, _stroke_width, anti_aliased)
-		2: #Triangle
-			var points : PackedVector2Array = [
-				Vector2(-radius, radius) + pivot_offset,
-				Vector2(0, -radius)+pivot_offset,
-				Vector2(radius, radius)+pivot_offset,
-				Vector2(-radius, radius) + pivot_offset
-			]
-			if filled:
-				draw_colored_polygon(points, _color)
+		match blend_mode:
+			0:
+				(material as ShaderMaterial).set_shader_parameter("shape", value)
+			1:
+				(material as ShaderMaterial).set_shader_parameter("shape", value)
+			2:
+				(material as ShaderMaterial).set_shader_parameter("shape", value)
 				
-			else:
-				draw_polyline(points, _color, stroke_width, anti_aliased)
-		3: #Line
-			filled = false
-			#if position == Vector2.ZERO and stroke_width < 5.0:
-				#stroke_width = 5.0
-			draw_line(Vector2(-radius,0) + pivot_offset, Vector2(radius, 0) + pivot_offset, _color, stroke_width)
+@export_range(0,10, 1.0) var poly_count: float = 3.0 : 
+	set(value):
+		if material == null:
+			return
+		(material as ShaderMaterial).set_shader_parameter("poly_count", value)
+
+@export_range(0.0,1.0,0.01) var edge_scalor = 1.0:
+	set(value):
+		if material == null:
+			return
+		edge_scalor = value
+		material.set_shader_parameter("radius_scalor", edge_scalor)
+
+@export var stroke_only := false:
+	set(value):
+		if material == null:
+			return
+		if stroke_only and edge_scalor >=1.0:
+			edge_scalor = 0.9
+		stroke_only= value
+		material.set_shader_parameter("stroke_only", stroke_only)
+		
+@export var center_pivot := false:
+	set(value):
+		pivot = Vector2(0.5,0.5);
+		pivot_offset = size*pivot
+		center_pivot = false
+		
+@export var pivot := Vector2.ZERO : 
+	set(value):
+		pivot = value
+		pivot_offset = size*pivot
+
+@export var mask_children := false:
+	set(value):
+		mask_children = value
+		clip_contents = mask_children
+		
+#func _set(property: StringName, value: Variant) -> bool:
+	#if property == "color":
+		#set_color(value)
+		#if material == null:
+			#return false
+		#material.set_shader_parameter("my_color", value)
+	#return true
+	
+func _ready() -> void:
+	material = shader_material.duplicate(true)
+	_color = _color
+	set_color(_color)
+	poly_count= poly_count
+	shape = shape
+	stroke_only = stroke_only
+	edge_scalor = edge_scalor
+	blend_mode = blend_mode
+	poly_count = poly_count
+
+
+func _on_size_flags_changed()->void:
+	pivot = pivot
+
+func _process(delta: float) -> void:
+	pass
